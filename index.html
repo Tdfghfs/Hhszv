@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>حجز موعد الحلاقة</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f9;
+            text-align: center;
+            direction: rtl;
+        }
+
+        h1 {
+            color: #2c3e50;
+        }
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .content {
+            width: 70%;
+            text-align: center;
+        }
+
+        .admin-section {
+            width: 25%;
+            text-align: right;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button {
+            background-color: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        .appointments {
+            margin-top: 20px;
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: right;
+        }
+
+        .appointment {
+            padding: 10px;
+            background-color: #fff;
+            margin: 5px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+
+        .waiting {
+            color: #f39c12;
+        }
+
+        .done {
+            color: #2ecc71;
+        }
+
+        .admin-login {
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        .admin-actions {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .countdown {
+            color: red;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- القسم الرئيسي لحجز المواعيد -->
+    <div class="content">
+        <h1>حجز موعد الحلاقة</h1>
+
+        <!-- حجز موعد للمستخدم العادي -->
+        <div>
+            <p>اكتب اسمك لحجز الموعد:</p>
+            <input type="text" id="name" placeholder="أدخل اسمك هنا">
+            <button onclick="bookAppointment()">حجز</button>
+        </div>
+
+        <!-- قائمة الحجوزات -->
+        <div>
+            <h3>قائمة الحجوزات:</h3>
+            <div id="appointmentsList"></div>
+            <div class="countdown" id="countdown"></div>
+        </div>
+    </div>
+
+    <!-- القسم الخاص بالمشرف -->
+    <div class="admin-section">
+        <h3>المشرفين</h3>
+
+        <!-- تسجيل دخول المشرف -->
+        <div class="admin-login">
+            <h3>تسجيل دخول المشرف</h3>
+            <input type="text" id="adminUsername" placeholder="@uflooe">
+            <input type="password" id="adminPassword" placeholder="ZXCVBNMLKJHG1">
+            <button onclick="adminLogin()">تسجيل الدخول</button>
+            <p class="error" id="loginError"></p>
+        </div>
+
+        <!-- خيارات المشرف بعد تسجيل الدخول -->
+        <div class="admin-actions">
+            <h3>قائمة الحجوزات:</h3>
+            <div id="adminAppointmentsList"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const appointments = [];
+    const adminUsername = "@uflooe";
+    const adminPassword = "5309697442";
+    let adminLoggedIn = false;
+    let countdownInterval = null;
+
+    // دالة تسجيل دخول المشرف
+    function adminLogin() {
+        const username = document.getElementById('adminUsername').value;
+        const password = document.getElementById('adminPassword').value;
+        const errorMessage = document.getElementById('loginError');
+
+        if (username === adminUsername && password === adminPassword) {
+            adminLoggedIn = true;
+            document.querySelector('.admin-login').style.display = 'none';
+            document.querySelector('.admin-actions').style.display = 'block';
+            updateAdminAppointments();
+        } else {
+            errorMessage.textContent = "اسم المستخدم أو كلمة المرور غير صحيحة.";
+        }
+    }
+
+    // دالة حجز الموعد
+    function bookAppointment() {
+        const name = document.getElementById('name').value;
+        if (name === "") {
+            alert("من فضلك أدخل اسمك أولاً.");
+            return;
+        }
+
+        // إضافة الحجز
+        appointments.push({ name, status: "waiting", time: Date.now() });
+
+        // تحديث قائمة الحجوزات للمستخدمين
+        updateAppointments();
+        document.getElementById('name').value = "";  // مسح الحقل بعد الحجز
+    }
+
+    // تحديث قائمة الحجوزات للمستخدمين
+    function updateAppointments() {
+        const list = document.getElementById('appointmentsList');
+        list.innerHTML = '';
+        
+        if (appointments.length === 0) {
+            list.innerHTML = '<p>لا توجد حجوزات حالياً.</p>';
+            return;
+        }
+
+        appointments.forEach((appointment) => {
+            const appointmentDiv = document.createElement('div');
+            appointmentDiv.classList.add('appointment');
+            appointmentDiv.innerHTML = `${appointment.name} - `;
+
+            if (appointment.status === "waiting") {
+                appointmentDiv.innerHTML += `<span class="waiting">تحت الانتظار</span>`;
+            } else {
+                appointmentDiv.innerHTML += `<span class="done">تم الانتهاء من الحلاقة</span>`;
+            }
+
+            list.appendChild(appointmentDiv);
+        });
+
+        // عرض العد التنازلي لحجز 24 ساعة
+        showCountdown();
+    }
+
+    // تحديث قائمة الحجوزات للمشرف
+    function updateAdminAppointments() {
+        const adminList = document.getElementById('adminAppointmentsList');
+        adminList.innerHTML = '';
+        
+        if (appointments.length === 0) {
+            adminList.innerHTML = '<p>لا توجد حجوزات حالياً.</p>';
+            return;
+        }
+
+        appointments.forEach((appointment, index) => {
+            const appointmentDiv = document.createElement('div');
+            appointmentDiv.classList.add('appointment');
+            appointmentDiv.innerHTML = `${appointment.name} - `;
+
+            if (appointment.status === "waiting") {
+                appointmentDiv.innerHTML += `<span class="waiting">تحت الانتظار</span>`;
+                const acceptButton = document.createElement('button');
+                acceptButton.textContent = 'قبول';
+                acceptButton.onclick = function() {
+                    appointment.status = 'done';
+                    updateAppointments();
+                    updateAdminAppointments();
+                };
+                appointmentDiv.appendChild(acceptButton);
+            } else {
+                appointmentDiv.innerHTML += `<span class="done">تم الانتهاء من الحلاقة</span>`;
+            }
+
+            adminList.appendChild(appointmentDiv);
+        });
+    }
+
+    // دالة عرض العد التنازلي
+    function showCountdown() {
+        const now = Date.now();
+        const waitingAppointments = appointments.filter(appointment => appointment.status === 'waiting');
+        
+        if (waitingAppointments.length > 0) {
+            const nextAppointmentTime = waitingAppointments[0].time;
+            const timeLeft = Math.max(0, (nextAppointmentTime + 24 * 60 * 60 * 1000) - now);
+
+            if (countdownInterval) clearInterval(countdownInterval);
+
+            countdownInterval = setInterval(() => {
+                const remainingTime = timeLeft - (Date.now() - now);
+                const hours = Math.floor(remainingTime / (1000 * 60 * 60));
+                const minutes = Math.floor((remainingTime % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((remainingTime % (1000 * 60)) / 1000);
+                const formattedTime = `${hours}:${minutes}:${seconds}`;
+                document.getElementById('countdown').textContent = `الوقت المتبقي: ${formattedTime}`;
+            }, 1000);
+        }
+    }
+</script>
+
+</body>
+</html>
